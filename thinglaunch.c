@@ -59,6 +59,24 @@ struct ScreenResolution {
     int height;
 };
 
+int main(int argc, char ** argv) {
+
+	command[0] = 0x0;
+	cursor_pos = 0;
+
+	createWindow();
+
+	setupGC();
+
+	grabHack();
+
+	eventLoop();
+
+	/* don't return */
+	return 1; /* keep compilers happy */
+
+}
+
 /* get the screen resolution of the primary screen */
 struct ScreenResolution get_screen_resolution()
 {
@@ -128,24 +146,6 @@ struct ScreenResolution get_screen_resolution()
     XCloseDisplay(dpy);
 
     return resolution;
-}
-
-int main(int argc, char ** argv) {
-
-	command[0] = 0x0;
-	cursor_pos = 0;
-
-	createWindow();
-
-	setupGC();
-
-	grabHack();
-
-	eventLoop();
-
-	/* don't return */
-	return 1; /* keep compilers happy */
-
 }
 
 static void createWindow() {
