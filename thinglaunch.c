@@ -27,6 +27,7 @@
 #ifdef __FreeBSD__
 #include <libgen.h>
 #endif
+#include <X11/extensions/Xrandr.h>
 
 static void createWindow();
 static void setupGC();
@@ -36,9 +37,6 @@ static void redraw();
 static void keypress(XKeyEvent * keyevent);
 static void execcmd();
 static void die(const char* message);
-
-/* Somewhat arbitrary. But important I guess if I end up changing it */
-#define THINGLAUNCH_VERSION 1.03
 
 Display * display;
 GC gc;
@@ -55,6 +53,82 @@ unsigned long black, white;
 /* the actual commandline */
 char command[MAXCMD+1];
 size_t cursor_pos;
+
+struct ScreenResolution {
+    int width;
+    int height;
+};
+
+/* get the screen resolution of the primary screen */
+struct ScreenResolution get_screen_resolution()
+{
+    struct ScreenResolution resolution = { 0, 0 };
+
+    // Open a connection to the X server
+    Display* dpy = XOpenDisplay(NULL);
+    if (!dpy) {
+        fprintf(stderr, "Error: could not open display.\n");
+        exit(1);
+    }
+
+    // Get the default screen of the X server
+    int screenNum = DefaultScreen(dpy);
+    Screen* screen = ScreenOfDisplay(dpy, screenNum);
+
+    // Get the root window of the default screen
+    Window root = RootWindow(dpy, screenNum);
+
+    // Get the XRandR extension version
+    int major, minor;
+    if (XRRQueryVersion(dpy, &major, &minor) == False) {
+        fprintf(stderr, "Error: XRandR extension not available.\n");
+        exit(1);
+    }
+
+    // Get the screen resources of the root window
+    XRRScreenResources* res = XRRGetScreenResources(dpy, root);
+    if (!res) {
+        fprintf(stderr, "Error: could not get screen resources.\n");
+        exit(1);
+    }
+
+    // Find the primary monitor
+    int primaryCrtc = -1;
+    XRRCrtcInfo* crtcInfo;
+    for (int i = 0; i < res->ncrtc; i++) {
+        crtcInfo = XRRGetCrtcInfo(dpy, res, res->crtcs[i]);
+        if (crtcInfo->mode != None && crtcInfo->x == 0 && crtcInfo->y == 0) {
+            primaryCrtc = res->crtcs[i];
+            XRRFreeCrtcInfo(crtcInfo);
+            break;
+        }
+        XRRFreeCrtcInfo(crtcInfo);
+    }
+
+    if (primaryCrtc == -1) {
+        fprintf(stderr, "Error: could not find primary monitor.\n");
+        XRRFreeScreenResources(res);
+        exit(1);
+    }
+
+    // Get the screen resolution of the primary monitor
+    XRRCrtcInfo* primaryCrtcInfo = XRRGetCrtcInfo(dpy, res, primaryCrtc);
+    if (!primaryCrtcInfo) {
+        fprintf(stderr, "Error: could not get primary monitor information.\n");
+        XRRFreeScreenResources(res);
+        exit(1);
+    }
+
+    resolution.width = primaryCrtcInfo->width;
+    resolution.height = primaryCrtcInfo->height;
+
+    // Free resources
+    XRRFreeCrtcInfo(primaryCrtcInfo);
+    XRRFreeScreenResources(res);
+    XCloseDisplay(dpy);
+
+    return resolution;
+}
 
 int main(int argc, char ** argv) {
 
@@ -97,8 +171,15 @@ static void createWindow() {
 	display_width = DisplayWidth(display, screen_num);
 	display_height = DisplayHeight(display, screen_num);
 
+	/*
 	top = (display_height/2 - WINHEIGHT/2);
 	left = (display_width/2 - WINWIDTH/2);
+	*/
+
+	struct ScreenResolution resolution = get_screen_resolution();
+
+	top = (resolution.height/2 - WINHEIGHT/2);
+	left = (resolution.width/2 - WINWIDTH/2);
 
 	black = BlackPixel(display, screen_num);
 	white = WhitePixel(display, screen_num);
