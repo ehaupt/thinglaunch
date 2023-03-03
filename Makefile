@@ -1,6 +1,9 @@
 PROGRAM=	thinglaunch
 SRC=		thinglaunch.c
 
+CC?=		cc
+PREFIX?=	/usr/local
+
 CFLAGS+=	`pkg-config --cflags x11 xrandr`
 LDFLAGS+=	`pkg-config --libs x11 xrandr`
 
