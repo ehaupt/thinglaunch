@@ -9,5 +9,11 @@ all: build
 build:
 	${CC} ${CFLAGS} ${LDFLAGS} ${SRC} -o ${PROGRAM}
 
+strip:
+	@strip ${PROGRAM}
+
+install: strip
+	install -s -m 555 ${PROGRAM} ${DESTDIR}${PREFIX}/bin
+
 clean:
-	rm -rf ${PROGRAM}
+	@rm -rf ${PROGRAM}
